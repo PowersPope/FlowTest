@@ -58,5 +58,17 @@ class FlowMatching(nn.Module):
 
         return x_1
 
-    def get_loss(self):
-        return self.flow.
+    def get_loss(self, x: torch.Tensor):
+        """Calculate whatever the desired flow we are using's loss term
+
+        PARAMS
+        ------
+        x: Tensor (B, D)
+            Flow generated x
+
+        RETURNS
+        -------
+        loss: Tensor (1)
+            Loss term calculated using the desired flow
+        """
+        return self.flow.loss(self.v_t, x)
