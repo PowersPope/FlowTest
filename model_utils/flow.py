@@ -72,3 +72,82 @@ class FlowMatching(nn.Module):
             Loss term calculated using the desired flow
         """
         return self.flow.loss(self.v_t, x)
+
+class CondVF(nn.Module):
+    def __init__(self, net: nn.Module):
+        super().__init__()
+        """Conditional Vector Field that is a neural network
+        to establish the probability density path 
+
+        PARAMS
+        ------
+        net: nn.Module
+            Neural Network for some VF
+        """
+        # Set the params
+        self.net = net
+
+    def forward(self, t: torch.Tensor, x: torch.Tensor):
+        """Taking some t time step forward through the time 
+        t \in [0,1]
+
+        PARAMS
+        ------
+        t: Tensor (float)
+            Time step
+        x: Tensor (B, D)
+            Sample taken from the p_t(x) distribution
+        """
+        # Return the current time step in the vector fiedl with the given
+        # x
+        return self.net(t, x)
+
+    def wrapper(self, t: torch.Tensor, x: torch.Tensor):
+        """Wrapper to update the time step portion 
+
+        PARAMS
+        ------
+        t: Tensor (float)
+            Time step
+        x: Tensor (B, D)
+            Sample taken from the p_t(x) distribution
+        """
+        # generate column vector of size (D)
+        t = t * torch.ones(x.size(-1), device=x.device)
+        return self(t, x)
+
+    def decode_t0_t1(
+        self,
+        x_0: torch.Tensor,
+        t0: float,
+        t1: float,
+        ):
+        """Perform ODE steps from 0 -> 1 along x_0
+
+        PARAMS
+        ------
+        x_0: Tensor (B, D)
+            The initial gaussian prior distribution
+        t0: float
+            Starting time point
+        t1: float
+            End time point
+        """
+        return odeint(self.wrapper, x_0, t0, t1, self.parameters())
+
+    def decode(self, x_0: torch.Tensor):
+        """Generation Function. Ssample from x_0 ~ p_0,
+        then we calc x_1 by integrating v_theta from t 0 -> 1
+        with x_0
+
+        PARAMS
+        ------
+        x_0: Tensor (B, D)
+            The initial gaussian prior distribution
+        """
+        return odeint(self.wrapper, x_0, 0., 1.)
+
+
+
+
+
